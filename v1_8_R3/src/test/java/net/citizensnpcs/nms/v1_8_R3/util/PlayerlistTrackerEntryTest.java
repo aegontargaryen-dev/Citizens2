@@ -15,6 +15,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+
 import net.citizensnpcs.api.event.NPCLinkToPlayerEvent;
 import net.citizensnpcs.api.event.NPCSeenByPlayerEvent;
 import net.citizensnpcs.api.event.NPCUnlinkFromPlayerEvent;
@@ -24,6 +26,7 @@ import net.citizensnpcs.npc.ai.NPCHolder;
 import net.minecraft.server.v1_8_R3.EntityEgg;
 import net.minecraft.server.v1_8_R3.EntityHuman;
 import net.minecraft.server.v1_8_R3.EntityPlayer;
+import net.minecraft.server.v1_8_R3.EntityTracker;
 import net.minecraft.server.v1_8_R3.EntityTrackerEntry;
 import net.minecraft.server.v1_8_R3.PacketPlayOutNamedEntitySpawn;
 import net.minecraft.server.v1_8_R3.PacketPlayOutSpawnEntity;
@@ -221,6 +224,28 @@ public class PlayerlistTrackerEntryTest {
         assertTrue(entry.trackedPlayers.contains(viewer));
         assertEquals(12, entry.b);
         assertEquals(1, server.count(NPCLinkToPlayerEvent.class));
+    }
+
+    @Test
+    public void nativeViewDistanceRefreshCannotWidenConfiguredRangeForExistingViewers() throws Exception {
+        server.metadata.set(NPC.Metadata.TRACKING_RANGE, 12);
+        EntityPlayer viewer = server.player();
+        viewer.locX = 12;
+        entry.updatePlayer(viewer);
+        assertTrue(entry.trackedPlayers.contains(viewer));
+
+        EntityTracker tracker = server.world.getTracker();
+        NativeTestSupport.set(EntityTracker.class, tracker, "c",
+                new ObjectOpenHashSet<>(Collections.singleton(entry)));
+        tracker.updateViewDistanceBlocks(64);
+        assertEquals(64, entry.b);
+        viewer.locX = 13;
+        entry.updatePlayer(viewer);
+
+        assertEquals(12, entry.b);
+        assertFalse(entry.trackedPlayers.contains(viewer));
+        assertEquals(1, server.count(NPCLinkToPlayerEvent.class));
+        assertEquals(1, server.count(NPCUnlinkFromPlayerEvent.class));
     }
 
     @Test

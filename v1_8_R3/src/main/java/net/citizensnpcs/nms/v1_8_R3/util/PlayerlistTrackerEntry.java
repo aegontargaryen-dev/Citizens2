@@ -49,13 +49,15 @@ public class PlayerlistTrackerEntry extends EntityTrackerEntry {
     public void updatePlayer(EntityPlayer player) {
         if (player instanceof EntityHumanNPC)
             return;
-        boolean wasTracked = trackedPlayers.contains(player);
-        if (!wasTracked && tracker instanceof NPCHolder) {
+        if (tracker instanceof NPCHolder) {
             NPC npc = ((NPCHolder) tracker).getNPC();
-            NPCSeenByPlayerEvent event = new NPCSeenByPlayerEvent(npc, player.getBukkitEntity());
-            Bukkit.getPluginManager().callEvent(event);
-            if (event.isCancelled())
-                return;
+            if (!trackedPlayers.contains(player)) {
+                NPCSeenByPlayerEvent event = new NPCSeenByPlayerEvent(npc, player.getBukkitEntity());
+                Bukkit.getPluginManager().callEvent(event);
+                if (event.isCancelled())
+                    return;
+            }
+            // The native view-distance refresh can reset b even for current viewers.
             Integer range = npc.data().get(NPC.Metadata.TRACKING_RANGE);
             if (range != null) {
                 b = range;
