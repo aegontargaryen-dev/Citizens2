@@ -46,6 +46,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <jvm>${aigot.test.jvm}</jvm>
+                    <workingDirectory>${project.build.directory}</workingDirectory>
                     <argLine>${aigot.test.jvm.args}</argLine>
                 </configuration>
             </plugin>
