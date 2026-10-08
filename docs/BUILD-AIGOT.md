@@ -122,7 +122,8 @@ The transitive WorldEdit inputs are fixed to `7.2.0-20201102.221009-187`
 `7.2.0-20201102.221009-188` (worldedit-libs core). VaultAPI's redundant, mutable
 legacy Bukkit dependency is excluded in favor of the pinned Spigot API. CitizensAPI
 explicitly declares its directly imported json-simple 1.1.1 as provided, instead
-of depending on that obsolete Bukkit dependency to supply it accidentally.
+of depending on that obsolete Bukkit dependency to supply it accidentally. The
+main module likewise declares its directly imported commons-lang 2.6 as provided.
 
 The main JAR includes the real, source-built CitizensAPI and upstream shaded
 Libby implementation. The adapter compiles against the genuine provided AIgot

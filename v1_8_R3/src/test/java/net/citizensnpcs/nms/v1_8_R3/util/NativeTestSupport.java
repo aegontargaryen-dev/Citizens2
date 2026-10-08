@@ -15,6 +15,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.v1_8_R3.CraftServer;
 import org.bukkit.craftbukkit.v1_8_R3.entity.CraftEntity;
 import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_8_R3.scoreboard.CraftScoreboardManager;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
@@ -43,6 +44,7 @@ import net.minecraft.server.v1_8_R3.EntityLiving;
 import net.minecraft.server.v1_8_R3.EntityPlayer;
 import net.minecraft.server.v1_8_R3.EntityTracker;
 import net.minecraft.server.v1_8_R3.MinecraftServer;
+import net.minecraft.server.v1_8_R3.Scoreboard;
 import net.minecraft.server.v1_8_R3.Packet;
 import net.minecraft.server.v1_8_R3.PlayerChunkMap;
 import net.minecraft.server.v1_8_R3.PlayerConnection;
@@ -79,6 +81,7 @@ final class NativeTestSupport implements AutoCloseable {
 
         CraftServer bukkit = allocate(CraftServer.class);
         set(CraftServer.class, bukkit, "console", server);
+        bukkit.scoreboardManager = new CraftScoreboardManager(server, new Scoreboard());
         set(CraftServer.class, bukkit, "logger", Logger.getLogger("Citizens native tests"));
         plugins = new SimplePluginManager(bukkit, null);
         set(CraftServer.class, bukkit, "pluginManager", plugins);
