@@ -179,6 +179,11 @@ public class EventListen implements Listener {
         try {
             kbc = Class.forName("com.destroystokyo.paper.event.entity.EntityKnockbackByEntityEvent");
         } catch (ClassNotFoundException e) {
+            try {
+                // AIgot 1.8 uses the original Paper event and its actual impulse.
+                kbc = Class.forName("org.github.paperspigot.event.entity.EntityKnockbackByEntityEvent");
+            } catch (ClassNotFoundException legacyUnavailable) {
+            }
         }
         if (kbc != null) {
             registerKnockbackEvent(kbc);

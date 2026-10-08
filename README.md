@@ -1,3 +1,14 @@
+AIgot compatibility fork
+========================
+
+This branch is a modified, AIgot-only Citizens 2.0.35 port based on upstream build 3478.
+It requires the matching AIgot integration hooks; an ordinary Spigot/AIgot 1.8.8
+server is not interchangeable. Use [the isolated build guide](docs/BUILD-AIGOT.md)
+and `./build-aigot.sh`, rather than the upstream multi-version build below.
+JDK 21 compiles Java 8 bytecode; a Java 8 runtime executes the native adapter tests.
+No private server code or server binary is included. Runtime gameplay validation
+is still required before deployment.
+
 Citizens2 README
 ================
 
