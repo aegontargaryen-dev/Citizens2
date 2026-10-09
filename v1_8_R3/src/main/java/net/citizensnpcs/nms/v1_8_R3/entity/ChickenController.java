@@ -80,12 +80,6 @@ public class ChickenController extends MobEntityController {
         }
 
         @Override
-        public void a(Entity entity, float strength, double dx, double dz) {
-            NMS.callKnockbackEvent(npc, strength, dx, dz, evt -> super.a(entity, (float) evt.getStrength(),
-                    evt.getKnockbackVector().getX(), evt.getKnockbackVector().getZ()));
-        }
-
-        @Override
         public int aE() {
             return NMS.getFallDistance(npc, super.aE());
         }

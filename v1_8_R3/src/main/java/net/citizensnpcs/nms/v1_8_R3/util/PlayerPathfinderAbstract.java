@@ -2,14 +2,15 @@ package net.citizensnpcs.nms.v1_8_R3.util;
 
 import net.minecraft.server.v1_8_R3.Entity;
 import net.minecraft.server.v1_8_R3.IBlockAccess;
-import net.minecraft.server.v1_8_R3.IntHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.server.v1_8_R3.MathHelper;
 import net.minecraft.server.v1_8_R3.PathPoint;
 import net.minecraft.server.v1_8_R3.PathfinderAbstract;
 
 public abstract class PlayerPathfinderAbstract extends PathfinderAbstract {
     protected IBlockAccess a;
-    protected IntHashMap<PathPoint> b = new IntHashMap<>();
+    protected Long2ObjectMap<PathPoint> b = new Long2ObjectOpenHashMap<>();
     protected int c;
     protected int d;
     protected int e;
@@ -27,7 +28,7 @@ public abstract class PlayerPathfinderAbstract extends PathfinderAbstract {
     @Override
     public void a(IBlockAccess paramIBlockAccess, Entity paramEntity) {
         this.a = paramIBlockAccess;
-        this.b.c();
+        this.b.clear();
         this.c = MathHelper.d(paramEntity.width + 1.0F);
         this.d = MathHelper.d(paramEntity.length + 1.0F);
         this.e = MathHelper.d(paramEntity.width + 1.0F);
@@ -35,11 +36,11 @@ public abstract class PlayerPathfinderAbstract extends PathfinderAbstract {
 
     @Override
     protected PathPoint a(int paramInt1, int paramInt2, int paramInt3) {
-        int i = PathPoint.a(paramInt1, paramInt2, paramInt3);
+        long i = PathPoint.a(paramInt1, paramInt2, paramInt3);
         PathPoint localPathPoint = this.b.get(i);
         if (localPathPoint == null) {
             localPathPoint = new PathPoint(paramInt1, paramInt2, paramInt3);
-            this.b.a(i, localPathPoint);
+            this.b.put(i, localPathPoint);
         }
         return localPathPoint;
     }

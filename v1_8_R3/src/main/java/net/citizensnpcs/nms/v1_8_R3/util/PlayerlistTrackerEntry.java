@@ -1,17 +1,13 @@
 package net.citizensnpcs.nms.v1_8_R3.util;
 
-import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Field;
-import java.util.Map;
+import java.util.ArrayList;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_8_R3.entity.CraftPlayer;
 
-import com.google.common.collect.ForwardingMap;
-import com.google.common.collect.ForwardingSet;
+import it.unimi.dsi.fastutil.objects.Reference2BooleanOpenHashMap;
 
 import net.citizensnpcs.api.event.NPCLinkToPlayerEvent;
 import net.citizensnpcs.api.event.NPCSeenByPlayerEvent;
@@ -24,176 +20,87 @@ import net.minecraft.server.v1_8_R3.Entity;
 import net.minecraft.server.v1_8_R3.EntityPlayer;
 import net.minecraft.server.v1_8_R3.EntityTrackerEntry;
 
+/** Uses native lifecycle methods so AIgot's map and its key-set stay coherent. */
 public class PlayerlistTrackerEntry extends EntityTrackerEntry {
-    private Map<EntityPlayer, Boolean> trackingMap;
-
-    public PlayerlistTrackerEntry(Entity entity, int i, int j, boolean flag) {
-        super(entity, i, j, flag);
-        if (TRACKING_MAP_SETTER != null) {
-            try {
-                Map<EntityPlayer, Boolean> delegate = (Map<EntityPlayer, Boolean>) TRACKING_MAP_GETTER.invoke(this);
-                trackingMap = delegate;
-                TRACKING_MAP_SETTER.invoke(this, new ForwardingMap<EntityPlayer, Boolean>() {
-                    @Override
-                    protected Map<EntityPlayer, Boolean> delegate() {
-                        return delegate;
-                    }
-
-                    @Override
-                    public Boolean put(EntityPlayer player, Boolean value) {
-                        Boolean res = super.put(player, value);
-                        if (res == null) {
-                            updateLastPlayer(player);
-                        }
-                        return res;
-                    }
-
-                    @Override
-                    public Boolean remove(Object conn) {
-                        Boolean removed = super.remove(conn);
-                        if (removed) {
-                            Bukkit.getPluginManager().callEvent(new NPCUnlinkFromPlayerEvent(
-                                    ((NPCHolder) tracker).getNPC(), ((EntityPlayer) conn).getBukkitEntity()));
-                        }
-                        return removed;
-                    }
-                });
-            } catch (Throwable e) {
-                e.printStackTrace();
+    public PlayerlistTrackerEntry(Entity entity, int range, int effectiveRange, int frequency, boolean velocity) {
+        super(entity, range, effectiveRange, frequency, velocity);
+        // Link must fire before the native spawn packet is built (skin setup).
+        // Both native views must refer to the very same identity-based map.
+        trackedPlayerMap = new Reference2BooleanOpenHashMap<EntityPlayer>() {
+            @Override
+            public boolean put(EntityPlayer player, boolean value) {
+                boolean existed = containsKey(player);
+                boolean previous = super.put(player, value);
+                if (!existed && tracker instanceof NPCHolder) {
+                    Bukkit.getPluginManager().callEvent(new NPCLinkToPlayerEvent(
+                            ((NPCHolder) tracker).getNPC(), player.getBukkitEntity()));
+                }
+                return previous;
             }
-        } else {
-            try {
-                Set<EntityPlayer> delegate = super.trackedPlayers;
-                TRACKING_SET_SETTER.invoke(this, new ForwardingSet<EntityPlayer>() {
-                    @Override
-                    public boolean add(EntityPlayer player) {
-                        boolean res = super.add(player);
-                        if (res) {
-                            updateLastPlayer(player);
-                        }
-                        return res;
-                    }
-
-                    @Override
-                    protected Set<EntityPlayer> delegate() {
-                        return delegate;
-                    }
-
-                    @Override
-                    public boolean remove(Object conn) {
-                        boolean removed = super.remove(conn);
-                        if (removed) {
-                            Bukkit.getPluginManager().callEvent(new NPCUnlinkFromPlayerEvent(
-                                    ((NPCHolder) tracker).getNPC(), ((EntityPlayer) conn).getBukkitEntity()));
-                        }
-                        return removed;
-                    }
-                });
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
-        }
+        };
+        trackedPlayers = trackedPlayerMap.keySet();
     }
 
     public PlayerlistTrackerEntry(EntityTrackerEntry entry) {
-        this(entry.tracker, getB(entry), getC(entry), getU(entry));
+        this(entry.tracker, entry.trackingRange, entry.b, entry.c, requiresVelocity(entry));
     }
 
-    private boolean isTracked(EntityPlayer player) {
-        return trackingMap != null ? trackingMap.containsKey(player) : trackedPlayers.contains(player);
+    @Override
+    public void updatePlayer(EntityPlayer player) {
+        if (player instanceof EntityHumanNPC)
+            return;
+        if (tracker instanceof NPCHolder) {
+            NPC npc = ((NPCHolder) tracker).getNPC();
+            if (!trackedPlayers.contains(player)) {
+                NPCSeenByPlayerEvent event = new NPCSeenByPlayerEvent(npc, player.getBukkitEntity());
+                Bukkit.getPluginManager().callEvent(event);
+                if (event.isCancelled())
+                    return;
+            }
+            // The native view-distance refresh can reset b even for current viewers.
+            Integer range = npc.data().get(NPC.Metadata.TRACKING_RANGE);
+            if (range != null) {
+                b = range;
+            }
+        }
+        super.updatePlayer(player);
     }
 
-    public void updateLastPlayer(EntityPlayer lastUpdatedPlayer) {
-        if (lastUpdatedPlayer != null) {
-            Bukkit.getPluginManager().callEvent(
-                    new NPCLinkToPlayerEvent(((NPCHolder) tracker).getNPC(), lastUpdatedPlayer.getBukkitEntity()));
-            lastUpdatedPlayer = null;
+    @Override
+    public void clear(EntityPlayer player) {
+        boolean wasTracked = trackedPlayers.contains(player);
+        super.clear(player);
+        if (wasTracked && !trackedPlayers.contains(player)) {
+            unlinked(player);
         }
     }
 
     @Override
-    public void updatePlayer(final EntityPlayer entityplayer) {
-        if (entityplayer instanceof EntityHumanNPC)
-            return;
-        if (!isTracked(entityplayer) && tracker instanceof NPCHolder) {
-            NPC npc = ((NPCHolder) tracker).getNPC();
-            NPCSeenByPlayerEvent event = new NPCSeenByPlayerEvent(npc, entityplayer.getBukkitEntity());
-            Bukkit.getPluginManager().callEvent(event);
-            if (event.isCancelled())
-                return;
-            Integer trackingRange = npc.data().get(NPC.Metadata.TRACKING_RANGE);
-            if (trackingRange != null && npc.data().get("last-tracking-range", -1) != b) {
-                b = trackingRange;
-                npc.data().set("last-tracking-range", trackingRange);
-            }
+    public void a() {
+        // Dispatch through clear rather than bypassing unlink events in the native bulk clear.
+        for (EntityPlayer player : new ArrayList<>(trackedPlayers)) {
+            clear(player);
         }
-        super.updatePlayer(entityplayer);
     }
 
-    private static int getB(EntityTrackerEntry entry) {
+    private void unlinked(EntityPlayer player) {
+        if (tracker instanceof NPCHolder) {
+            Bukkit.getPluginManager().callEvent(new NPCUnlinkFromPlayerEvent(
+                    ((NPCHolder) tracker).getNPC(), player.getBukkitEntity()));
+        }
+    }
+
+    public static Set<org.bukkit.entity.Player> getSeenBy(EntityTrackerEntry entry) {
+        return entry.trackedPlayers.stream().map(EntityPlayer::getBukkitEntity).collect(Collectors.toSet());
+    }
+
+    private static boolean requiresVelocity(EntityTrackerEntry entry) {
         try {
-            Entity entity = entry.tracker;
-            if (entity instanceof NPCHolder)
-                return ((NPCHolder) entity).getNPC().data().get(NPC.Metadata.TRACKING_RANGE, (Integer) B.get(entry));
-            return (Integer) B.get(entry);
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }
-        return 0;
-    }
-
-    private static int getC(EntityTrackerEntry entry) {
-        try {
-            return (Integer) C.get(entry);
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }
-        return 0;
-    }
-
-    public static Set<org.bukkit.entity.Player> getSeenBy(EntityTrackerEntry tracker) {
-        if (TRACKING_MAP_GETTER != null) {
-            Map<EntityPlayer, Boolean> delegate;
-            try {
-                delegate = (Map<EntityPlayer, Boolean>) TRACKING_MAP_GETTER.invoke(tracker);
-            } catch (Throwable e) {
-                return null;
-            }
-            return delegate.keySet().stream().map((Function<? super EntityPlayer, ? extends CraftPlayer>) EntityPlayer::getBukkitEntity).collect(Collectors.toSet());
-        } else
-            return tracker.trackedPlayers.stream().map((Function<? super EntityPlayer, ? extends CraftPlayer>) EntityPlayer::getBukkitEntity).collect(Collectors.toSet());
-    }
-
-    private static boolean getU(EntityTrackerEntry entry) {
-        try {
-            return (Boolean) U.get(entry);
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    private static Field B = NMS.getField(EntityTrackerEntry.class, "b");
-    private static Field C = NMS.getField(EntityTrackerEntry.class, "c");
-    private static MethodHandle TRACKING_MAP_GETTER;
-    private static MethodHandle TRACKING_MAP_SETTER;
-    private static final MethodHandle TRACKING_SET_SETTER = NMS.getFirstFinalSetter(EntityTrackerEntry.class,
-            Set.class);
-    private static Field U = NMS.getField(EntityTrackerEntry.class, "u");
-    static {
-        try {
-            // Old paper versions override the tracked player set to be a map
-            if (EntityTrackerEntry.class.getField("trackedPlayerMap") != null) {
-                TRACKING_MAP_SETTER = NMS.getFirstSetter(EntityTrackerEntry.class, Map.class);
-                TRACKING_MAP_GETTER = NMS.getFirstGetter(EntityTrackerEntry.class, Map.class);
-            }
-        } catch (Exception e) {
+            return U.getBoolean(entry);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Cannot read AIgot tracker velocity configuration", e);
         }
     }
+
+    private static final Field U = NMS.getField(EntityTrackerEntry.class, "u");
 }

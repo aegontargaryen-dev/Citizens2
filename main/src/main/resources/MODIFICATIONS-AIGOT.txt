@@ -1,0 +1,15 @@
+Citizens AIgot compatibility fork
+
+This distribution is a modified work, not an official Citizens release.
+Source: https://github.com/aegontargaryen-dev/Citizens2
+Upstream Citizens2 revision: 2c0c7bf8a0dc11c25b6dfc63966769c074990b18
+Upstream CitizensAPI revision: e19598137d192935117d013f1674d10ca3a971bf
+
+Modifications: AIgot 1.8.8 adapter integration, native knockback event forwarding,
+NPC player participation and tracking, full-width path keys, unloaded-safe sky
+checks, and isolated build/test/verification tooling. The fork's commit history
+identifies the exact changes. Original license and attribution notices are retained.
+
+Citizens and these modifications remain licensed under the Open Software
+License 3.0; see the accompanying LICENSE. The private server is an external,
+provided build/runtime dependency and is not included in this distribution.

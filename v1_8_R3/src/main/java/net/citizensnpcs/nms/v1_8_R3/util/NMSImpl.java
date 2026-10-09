@@ -183,7 +183,6 @@ import net.minecraft.server.v1_8_R3.EntityLiving;
 import net.minecraft.server.v1_8_R3.EntityMinecartAbstract;
 import net.minecraft.server.v1_8_R3.EntityPlayer;
 import net.minecraft.server.v1_8_R3.EntityTameableAnimal;
-import net.minecraft.server.v1_8_R3.EntityTracker;
 import net.minecraft.server.v1_8_R3.EntityTrackerEntry;
 import net.minecraft.server.v1_8_R3.EntityTypes;
 import net.minecraft.server.v1_8_R3.EntityWither;
@@ -207,6 +206,7 @@ import net.minecraft.server.v1_8_R3.PacketPlayOutPlayerInfo;
 import net.minecraft.server.v1_8_R3.PacketPlayOutScoreboardTeam;
 import net.minecraft.server.v1_8_R3.PathEntity;
 import net.minecraft.server.v1_8_R3.PathPoint;
+import net.minecraft.server.v1_8_R3.PathfinderGoal;
 import net.minecraft.server.v1_8_R3.PathfinderGoalSelector;
 import net.minecraft.server.v1_8_R3.ReportedException;
 import net.minecraft.server.v1_8_R3.ScoreboardTeam;
@@ -231,11 +231,7 @@ public class NMSImpl implements NMSBridge {
         EntityHuman handle = (EntityHuman) getHandle(entity);
         if (handle.world == null)
             return;
-        if (remove) {
-            handle.world.players.remove(handle);
-        } else if (!handle.world.players.contains(handle)) {
-            handle.world.players.add(handle);
-        }
+        handle.world.setPlayerListMembership(handle, !remove);
     }
 
     @Override
@@ -297,7 +293,7 @@ public class NMSImpl implements NMSBridge {
         // TODO: configuration / use minecraft defaults for this
         int visibleDistance = handle instanceof EntityPlayer ? 512 : 80;
         boolean deltaTracking = handle instanceof EntityPlayer ? false : true;
-        EntityTrackerEntry tracker = new EntityTrackerEntry(handle, visibleDistance,
+        EntityTrackerEntry tracker = new EntityTrackerEntry(handle, visibleDistance, visibleDistance,
                 ((WorldServer) handle.world).getMinecraftServer().getPlayerList().d(), deltaTracking);
         Map<Integer, ItemStack> equipment = Maps.newHashMap();
         return new EntityPacketTracker() {
@@ -328,7 +324,8 @@ public class NMSImpl implements NMSBridge {
                         }
                     }
                 }
-                tracker.track(Lists.newArrayList(tracker.trackedPlayers));
+                // Packet NPCs must never acquire the world chunk-watcher audience.
+                tracker.track(null, Lists.newArrayList(tracker.trackedPlayers));
             }
 
             @Override
@@ -908,12 +905,8 @@ public class NMSImpl implements NMSBridge {
             }
             if (entity.dead) {
                 entity.world.removeEntity(entity);
-            } else if (!removeFromPlayerList) {
-                if (!entity.world.players.contains(entity)) {
-                    entity.world.players.add(entity);
-                }
             } else {
-                entity.world.players.remove(entity);
+                entity.world.setPlayerListMembership(entity, !removeFromPlayerList);
             }
         };
     }
@@ -973,20 +966,11 @@ public class NMSImpl implements NMSBridge {
         EntityTrackerEntry entry = server.getTracker().trackedEntities.get(entity.getEntityId());
         if (entry == null)
             return;
-        entry.a();
+        if (entry instanceof PlayerlistTrackerEntry)
+            return;
         PlayerlistTrackerEntry replace = new PlayerlistTrackerEntry(entry);
-        server.getTracker().trackedEntities.a(entity.getEntityId(), replace);
-        if (TRACKED_ENTITY_SET != null) {
-            try {
-                Collection<Object> set = (Collection<Object>) TRACKED_ENTITY_SET.get(server.getTracker());
-                set.remove(entry);
-                set.add(replace);
-            } catch (IllegalArgumentException e) {
-                e.printStackTrace();
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            }
-        }
+        if (!server.getTracker().replaceEntry(entry, replace))
+            return;
         if (getHandle(entity) instanceof EntityHumanNPC) {
             ((EntityHumanNPC) getHandle(entity)).setTracked(replace);
         }
@@ -1506,7 +1490,11 @@ public class NMSImpl implements NMSBridge {
         for (PathfinderGoalSelector selector : goalSelectors) {
             try {
                 Collection<?> list = (Collection<?>) GOAL_FIELD.get(selector);
-                list.clear();
+                // Native removal also stops running goals and updates AIgot's active set.
+                for (Object item : Lists.newArrayList(list)) {
+                    Field goal = NMS.getField(item.getClass(), "a");
+                    selector.a((PathfinderGoal) goal.get(item));
+                }
             } catch (Exception e) {
                 Messaging.logTr(Messages.ERROR_CLEARING_GOALS, e.getLocalizedMessage());
             }
@@ -1764,7 +1752,7 @@ public class NMSImpl implements NMSBridge {
     private static Method ENTITY_ATTACK_A = NMS.getMethod(Entity.class, "a", true, EntityLiving.class, Entity.class);
     private static Map<Class<?>, Integer> ENTITY_CLASS_TO_INT;
     private static Map<Class<?>, String> ENTITY_CLASS_TO_NAME;
-    private static MethodHandle ENTITY_NAVIGATION = NMS.getFirstSetter(EntityInsentient.class, Navigation.class);
+    private static MethodHandle ENTITY_NAVIGATION = NMS.getFirstSetter(EntityInsentient.class, NavigationAbstract.class);
     private static final Location FROM_LOCATION = new Location(null, 0, 0, 0);
     private static Method GET_NMS_BLOCK = NMS.getMethod(CraftBlock.class, "getNMSBlock", false);
     private static Field GOAL_FIELD = NMS.getField(PathfinderGoalSelector.class, "b");
@@ -1782,7 +1770,6 @@ public class NMSImpl implements NMSBridge {
     private static final MethodHandle RESULT_INVENTORY = NMS.getGetter(ContainerAnvil.class, "g");
     private static Field SKULL_PROFILE_FIELD;
     private static Field TEAM_FIELD;
-    private static Field TRACKED_ENTITY_SET = NMS.getField(EntityTracker.class, "c");
     static {
         try {
             Field field = NMS.getField(EntityTypes.class, "f");

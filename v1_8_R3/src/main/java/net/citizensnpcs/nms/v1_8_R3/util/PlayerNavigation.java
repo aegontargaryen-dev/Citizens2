@@ -252,12 +252,12 @@ public class PlayerNavigation extends NavigationAbstract {
     protected void d() {
         super.d();
         if (this.fb) {
-            if (this.c.i(new BlockPosition(MathHelper.floor(this.b.locX), (int) (this.b.getBoundingBox().b + 0.5D),
+            if (this.c.canSeeSkyIfLoaded(new BlockPosition(MathHelper.floor(this.b.locX), (int) (this.b.getBoundingBox().b + 0.5D),
                     MathHelper.floor(this.b.locZ))))
                 return;
             for (int i = 0; i < this.d.d(); i++) {
                 PathPoint localPathPoint = this.d.a(i);
-                if (this.c.i(new BlockPosition(localPathPoint.a, localPathPoint.b, localPathPoint.c))) {
+                if (this.c.canSeeSkyIfLoaded(new BlockPosition(localPathPoint.a, localPathPoint.b, localPathPoint.c))) {
                     this.d.b(i - 1);
                     return;
                 }

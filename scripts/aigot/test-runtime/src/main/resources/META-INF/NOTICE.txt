@@ -1,0 +1,18 @@
+Public runtime libraries for Citizens AIgot adapter tests only.
+This helper is not distributed inside the Citizens plugin.
+
+Adventure API and key 4.17.0, MIT license.
+Source: https://github.com/KyoriPowered/adventure/tree/bbdca1338be5d7d1660abdea7393c6c67c8cf610
+The original license.txt is preserved in licenses/adventure-MIT.txt.
+Its source attribution headers additionally state:
+Copyright (c) 2017-2024 KyoriPowered
+
+Examination API and string 1.3.0, MIT license.
+Source: https://github.com/KyoriPowered/examination/tree/9a5ae17573ea7e8517a7af2cccd3e34029cc6421
+The original license.txt is preserved in licenses/examination-MIT.txt.
+Its source attribution headers additionally state:
+Copyright (c) 2018-2021 KyoriPowered
+
+The net.kyori packages are relocated to clib.net.kyori to match the Citizens
+runtime library loader. The implementation bytes come from genuine public
+Maven artifacts; no API stubs or private server code are included.

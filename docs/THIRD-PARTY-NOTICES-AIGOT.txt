@@ -1,0 +1,17 @@
+Bundled dependency notices for Citizens 2.0.35-aigot-1
+
+See MODIFICATIONS-AIGOT.txt for the modified-work attribution and source pins.
+Citizens and CitizensAPI are licensed under the Open Software License 3.0.
+The original license is preserved in LICENSE and
+META-INF/licenses/citizensapi/LICENSE. Existing source notices are retained.
+
+Bundled third-party implementation:
+Libby core and Bukkit 1.1.5, relocated from net.byteflux.libby to
+clib.net.byteflux.libby by the upstream Citizens shading rules.
+Copyright (c) 2019 Matthew Harris. MIT license.
+The unchanged license is preserved in META-INF/licenses/libby-MIT.txt.
+License source at the upstream 1.1.5 revision:
+https://github.com/AlessioDP/libby/blob/6d052bbacebc1b3380ee621b723253eef49a4dd3/LICENSE
+
+The private AIgot server and other provided compile dependencies are not bundled.
+This notice does not grant any rights to that private server or its source.
