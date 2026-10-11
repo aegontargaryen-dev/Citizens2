@@ -140,6 +140,7 @@ public class Citizens extends JavaPlugin implements CitizensPlugin {
             NMS.updateInventoryTitle(player, view, newTitle);
         }
     };
+    private boolean mavenLibrariesLoaded;
     private CitizensNPCRegistry npcRegistry;
     private ProtocolLibListener protocolListener;
     private boolean saveOnDisable = true;
@@ -281,7 +282,20 @@ public class Citizens extends JavaPlugin implements CitizensPlugin {
         return traitFactory;
     }
 
+    @Override
+    public void onLoad() {
+        // Core-Spigot is STARTUP and calls createNamedNPCRegistry during its onEnable.
+        // That runs before this plugin's POSTWORLD onEnable. The first failed resolution
+        // of clib.trove is cached on CitizensNPCRegistry, so the libraries have to be
+        // on this classloader before any other plugin enables.
+        loadMavenLibraries();
+    }
+
     private void loadMavenLibraries() {
+        if (mavenLibrariesLoaded) {
+            return;
+        }
+
         getLogger().info("Loading external libraries");
 
         LibraryManager lib = new BukkitLibraryManager(this);
@@ -326,6 +340,7 @@ public class Citizens extends JavaPlugin implements CitizensPlugin {
             lib.loadLibrary(Library.builder().groupId("org{}joml").artifactId("joml").version("1.10.5").build());
         }
         PhTreeHelper.enablePooling(false);
+        mavenLibrariesLoaded = true;
     }
 
     @Override
