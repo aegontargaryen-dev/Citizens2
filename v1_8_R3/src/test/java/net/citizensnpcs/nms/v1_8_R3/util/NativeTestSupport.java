@@ -158,6 +158,8 @@ final class NativeTestSupport implements AutoCloseable {
         Object chunk = allocate(chunkType);
         set(chunkType, chunk, "b", new HashSet<>(Arrays.asList(players)));
         set(chunkType, chunk, "location", new ChunkCoordIntPair(0, 0));
+        // A watcher is eligible only after the native chunk has finished loading.
+        set(chunkType, chunk, "loaded", true);
         Map<Long, Object> chunks = (Map<Long, Object>) field(PlayerChunkMap.class, "chunkMap")
                 .get(world.getPlayerChunkMap());
         chunks.put(0L, chunk);
